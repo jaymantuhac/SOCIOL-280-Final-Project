@@ -1,0 +1,256 @@
+# the sna package has some useful functions for identifying subgroups
+library(sna)
+library(network)
+
+# let's try to find some cliques
+?clique.census  # SEE THE WARNING
+# clique.census counts the number of cliques (ie, 1-cliques) that each vertex belongs to
+#   it will also list the membership of cliques
+# NOTE: do not confuse this function with the concept of "n-cliques" 
+
+# count cliques in a network with 3 vertices
+g3 <- matrix(c(0,1,1,1,0,1,1,1,0),nrow=3)
+gplot(g3,displaylabels=T)
+cc3 <- clique.census(g3,clique.comembership="bysize")
+print(cc3)  # look at the output object
+cc3$clique.count  # there is one clique (Agg=1) containing 3 vertices (see the third row)
+cc3$clique.comemb[1,,]     # Co-membership for cliques of size 1 (undefined)
+cc3$clique.comemb[2,,]     # Co-membership for cliques of size 2 (not recorded, if larger clique present)
+cc3$clique.comemb[3,,]     # Co-membership for cliques of size 3
+cc3$cliques                # List the cliques of each size - member IDs
+
+# count cliques in a larger network with 3 cliques of size 2 (i.e., 3 reciprocated dyads)
+g4 <- matrix(c(0,0,0,1,1,0,1,0,0,1,0,1,1,0,1,0),nrow=4)  # note: the 1-2 tie is asymmetric
+gplot(g4,displaylabels=T,arrowhead.cex=2)
+cc4 <- clique.census(g4,clique.comembership="bysize")
+cc4$clique.count           # there are 3 cliques (Agg=3) containing 2 vertices (see the second row)
+cc4$cliques                # List the members of the 3 cliques
+
+# another network: 2 cliques of size 3
+g4a <- matrix(c(0,1,1,1,1,0,1,0,1,1,0,1,1,0,1,0),nrow=4)
+gplot(g4a,displaylabels=T,arrowhead.cex=2)
+cc4a <- clique.census(g4a,clique.comembership="bysize")
+cc4a$clique.count  # there are 2 cliques (Agg=2) containing 3 vertices (third row)
+cc4a$clique.comemb[3,,]    # Co-membership for 3-cliques (v1, v3 belong to 2 cliques; v2, v4 belong to 1 clique)
+cc4a$cliques               # List the cliques
+
+# Note: if a clique of size 3 or larger exists, cliques of size 1 and 2 are not counted
+# Vertices can belong to multiple cliques of size 3 or greater
+
+# a 5-actor network with a clique of size 3 & a clique of size 4
+g5 <- matrix(c(0,1,1,1,1,
+1,0,1,0,1,
+1,1,0,1,1,
+1,0,1,0,0,
+1,1,1,0,1),nrow=5)
+gplot(g5,displaylabels=T)
+cc5 <- clique.census(g5,clique.comembership="bysize")
+cc5$clique.count  # there is 1 clique (Agg=1) containing 3 vertices (third row) & 1 clique with 4 vertices
+cc5$clique.comemb[3,,]  # Co-membership for cliques of size 3
+cc5$clique.comemb[4,,]  # Co-membership for cliques of size 4
+cc5$cliques             # List the cliques
+
+# let's try this with something that looks like a real network
+net41 <- matrix(0,nrow=41,ncol=41)
+net41[1, 31]<-1
+net41[1, 33]<-1
+net41[2, 3]<-1
+net41[3, 7]<-1
+net41[4, 11]<-1
+net41[4, 14]<-1
+net41[4, 15]<-1
+net41[4, 24]<-1
+net41[6, 3]<-1
+net41[6, 7]<-1
+net41[8, 12]<-1
+net41[8, 13]<-1
+net41[8, 34]<-1
+net41[9, 20]<-1
+net41[9, 35]<-1
+net41[9, 39]<-1
+net41[10, 17]<-1
+net41[10, 25]<-1
+net41[10, 29]<-1
+net41[11, 15]<-1
+net41[11, 24]<-1
+net41[13, 3]<-1
+net41[13, 34]<-1
+net41[14, 34]<-1
+net41[15, 11]<-1
+net41[15, 14]<-1
+net41[15, 24]<-1
+net41[15, 33]<-1
+net41[15, 36]<-1
+net41[16, 14]<-1
+net41[16, 15]<-1
+net41[16, 34]<-1
+net41[16, 36]<-1
+net41[17, 29]<-1
+net41[18, 19]<-1
+net41[18, 20]<-1
+net41[18, 30]<-1
+net41[18, 35]<-1
+net41[18, 41]<-1
+net41[19, 30]<-1
+net41[19, 35]<-1
+net41[19, 39]<-1
+net41[20, 9]<-1
+net41[20, 19]<-1
+net41[20, 30]<-1
+net41[20, 39]<-1
+net41[21, 10]<-1
+net41[21, 25]<-1
+net41[21, 30]<-1
+net41[23, 9]<-1
+net41[23, 20]<-1
+net41[23, 22]<-1
+net41[25, 10]<-1
+net41[25, 17]<-1
+net41[25, 29]<-1
+net41[26, 17]<-1
+net41[26, 29]<-1
+net41[26, 32]<-1
+net41[27, 39]<-1
+net41[29, 17]<-1
+net41[30, 18]<-1
+net41[30, 19]<-1
+net41[30, 20]<-1
+net41[30, 35]<-1
+net41[31, 11]<-1
+net41[32, 36]<-1
+net41[33, 11]<-1
+net41[33, 14]<-1
+net41[33, 15]<-1
+net41[33, 16]<-1
+net41[33, 24]<-1
+net41[33, 31]<-1
+net41[33, 36]<-1
+net41[34, 3]<-1
+net41[34, 7]<-1
+net41[34, 14]<-1
+net41[35, 18]<-1
+net41[35, 19]<-1
+net41[35, 39]<-1
+net41[37, 16]<-1
+net41[37, 24]<-1
+net41[38, 17]<-1
+net41[38, 41]<-1
+net41[39, 27]<-1
+net41[40, 5]<-1
+plot41 <- gplot(net41, displaylabels=T) # redraw until the layout is pleasing
+cc41 <- clique.census(net41,clique.comembership="bysize")
+cc41$clique.count  # there are no cliques larger than a dyad
+net41sym <- symmetrize(net41,rule='weak')  # symmetrize the matrix and try again
+gplot(net41sym, displaylabels=T, coord=plot41, usearrows=F)
+
+# save a pdf of the graph (or any figure) in the working directory
+#getwd()   # identify the current working directory
+#pdf("net41.pdf")
+#gplot(net41sym, displaylabels=T, coord=plot41, usearrows=F)
+#dev.off()
+
+cc41sym <- clique.census(net41sym,clique.comembership="bysize")
+cc41sym$clique.count  # 15 cliques of size 3, 7 clique of size 4
+cc41sym$clique.comemb[3,,]  # Co-membership for cliques of size 3
+cc41sym$clique.comemb[4,,]  # Co-membership for cliques of size 4
+cc41sym$cliques             # List the cliques
+
+# size & color nodes by largest clique membership - subgroups should begin to appear
+maxClq <- apply((cc41sym$clique.count[,-1]>0)*as.numeric(rownames(cc41sym$clique.count)),2,max)
+gplot(net41sym, displaylabels=T, coord=plot41, usearrows=F, vertex.cex=maxClq, vertex.col=maxClq)
+gplot(net41sym, displaylabels=T, coord=plot41, usearrows=F, vertex.cex=maxClq/3, vertex.col=maxClq)  # adjust node size
+
+# step-by-step: how to calculate each node's largest clique membership (maxClq above)
+# examine the clique.count output;
+#   for each node (column), determine the lowest row that has a number, indicating the node belongs to a clique that size
+cc41sym$clique.count
+#   remove the first column of the output to obtain just the 41 nodes
+cc41sym$clique.count[,-1]
+#   convert the output from counts to a binary, true, false format (which is really 1, 0)
+cc41sym$clique.count[,-1] > 0
+#   multiply the binary ouput by the number of cliques each row represents
+#     the "as.numeric" is necessary because the row names are stored as characters (ie, not numbers)
+(cc41sym$clique.count[,-1] > 0) * as.numeric(rownames(cc41sym$clique.count))
+#   for each column, calculate the maximum value 
+#   in the apply function, the "2" near the end represents the 2nd dimension (columns)
+apply((cc41sym$clique.count[,-1] > 0) * as.numeric(rownames(cc41sym$clique.count)), 2, max)
+
+
+### another useful structure: k-cores
+# in a k-core, all nodes have ties to k other nodes in their subset
+# the kcore function calculates the size of the largest core each vertex belongs to
+# a simple example
+k5 <- kcores(g5,mode="graph")
+k5  # actor 4 belongs to a core of size 2 (all actors in the core tied to 2 others), others belong to core sized 3
+gplot(g5,displaylabels=T,vertex.cex=k5, vertex.col=k5)
+
+# a larger example
+k41 <- kcores(net41sym,mode="graph")
+k41
+gplot(net41sym, displaylabels=T, coord=plot41, usearrows=F, vertex.cex=k41/3, vertex.col=k41)
+
+### Use the igraph package to detect communities
+# igraph has lots of useful network functions, especially for "community detection"
+library(igraph)
+?igraph
+#  convert the network to an igraph network (different storage format than what sna uses)
+inet41 <- graph.adjacency(net41, mode=c("undirected"), diag=FALSE)
+#  store a layout for the network, assign a color (optional), then create the graph
+fr <- layout.fruchterman.reingold(inet41)  
+V(inet41)$color <- 'orange2'
+plot.igraph(inet41, layout=fr)
+
+#  here's one community detection algorithm: fastgreedy algorithm
+?fastgreedy.community
+fg <- fastgreedy.community(inet41)
+names(fg)   # lists the output objects
+#groups: more ties than what we would expect by chance
+#  plot the modularity for different numbers of communities
+plot(fg$modularity)
+
+# explain modularity...
+?modularity
+# In brief, modularity quantifies how well algorithm puts nodes into cohesive subsets
+# Higher modularity values indicate more ties within communities, and fewer outside
+# Modularity can help determine the ideal NUMBER of communities for a given network
+# Higher modularity = nodes better separated into dense subsets
+# Goal is to maximize modularity
+
+fg$modularity==max(fg$modularity)
+#  highest modularity before performing last 3 merges, so network has 4 communities
+membership(fg)    # see which group each node is assigned to
+#  plot the membership with colors
+colbar <- rainbow(max(membership(fg))+1)     # identify one color for each community
+V(inet41)$color <- colbar[membership(fg)+1]  # set the colors
+plot.igraph(inet41, layout=fr)                   # plot the network
+
+#  here's another community detection algorithm: leading eigenvector algorithm
+#   automatically extracts community sturcture with largest modularity
+lec <- leading.eigenvector.community(inet41)
+modularity(inet41,lec$membership)                # calculate the modularity
+table(lec$membership)                            # frequency of each community
+#  plot the network using colors for memberships
+colbar <- rainbow(max(lec$membership)+1)         # identify one color for each community
+V(inet41)$color <- colbar[lec$membership+1]      # set the colors
+plot.igraph(inet41)                   # plot the network
+
+# find the density within and between lec communities
+net41N <- as.network(net41)
+network::set.vertex.attribute(net41N,"lc",lec$membership)
+(mmlc <- mixingmatrix(net41N,"lc"))
+round(mmlc$matrix / rowSums(mmlc$matrix),2)
+gplot(net41, usearrows=F, vertex.col=colbar[lec$membership+1], label=lec$membership)
+
+# compare the group assignments
+table(lec$membership, membership(fg))
+# determine which nodes are classified differently by the two algorithms
+idNodes <- rep(1, 41)
+idNodes[c(which(lec$membership==1 & membership(fg)==1), 
+	which(lec$membership==4 & membership(fg)==1))] <- 2   # may need to modify due to stochasticity
+gplot(net41, usearrows=F, vertex.col=colbar[lec$membership+1], label=lec$membership, vertex.cex=idNodes)
+
+# just for fun, an interactive plotting function
+tkplot(inet41, layout=fr)                   
+# if that doesn't work and you're using a mac visit:
+# http://planspace.blogspot.com/2013/01/fix-r-tcltk-dependency-problem-on-mac.html
+

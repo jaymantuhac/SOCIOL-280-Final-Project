@@ -1,0 +1,61 @@
+# This script takes an edgelist and converts it into a sociomatrix
+# Edgelist must be specified as:
+#   column 1 is sender ID (ego)
+#   column 2 is receiver ID (alter)
+#   columns 3+ are not needed, but preserved (e.g., to create edge weights)
+# Script works for numeric IDs (it has not been tested on character IDs)
+# Script will work for two-mode networks if modes have mutually exclusive IDs
+
+library(tnet)  # only needed for the example network on line 12
+library(sna)  
+
+# specify the edgelist as an object called 'playNet'
+playNet <- data.frame(Davis.Southern.women.1mode.Cooccurance)
+head(playNet)
+
+# split the edgelist into edges (ego, alter) and edge attributes
+if(dim(playNet)[2] > 2) { 
+	edges <- playNet[,c(1,2)]
+	edgeAttrs <- playNet[,-c(1,2)] 
+	}
+
+# specify which IDs to include in the network
+#  - the code below uses all IDs in the edgelist
+#  - an alternative would be to only specify nodes that meet some criteria
+rawIDs <- sort(unique(unlist(edges)))    # the IDs to include in the network
+rawIDs <- 1:10
+( N <- length(rawIDs) )          # check that this is the number of nodes you expected
+newIDs <- seq(1:length(rawIDs))  # new IDs
+lookUp <- data.frame(rawIDs, newIDs)    # link the old IDs to the new IDs
+elNew <- matrix(NA, nrow=dim(edges)[1], ncol=2)     # create a new edgelist object filled with NA
+elNew[] <- lookUp$newIDs[match(unlist(edges), lookUp$rawIDs)]   # recode old IDs into new IDs
+
+# bring any attributes back into the edgelist
+if(dim(playNet)[2] > 2) { 
+	elNew <- data.frame(elNew, edgeAttrs) 
+	}
+
+# remove edges that weren't recoded
+#  - this occurs if you specify rawIDs that are a subset of nodes in the edgelist
+elNew <- elNew[apply(elNew, 1, function(x) sum(is.na(x)))==0,]  
+
+# examine the new edgelist 	
+head(elNew)
+tail(elNew)
+
+# turn the edgelist into a matrix (called 'mat')
+mat <- matrix(0, nrow=N, ncol=N)  # create a NxN sociomatrix filled with 0's
+
+# populate the matrix
+for (i in 1:dim(elNew)[1]) {
+	mat[elNew[i,1],elNew[i,2]] <- 1           # each edge is coded as 1
+#	mat[elNew[i,1],elNew[i,2]] <- elNew[i,3]  # or, to use a third column with edgeweights
+	}
+
+# examine the sociomatrix
+table(mat, useNA='always')  # are the number of ties what you expect?	
+table(diag(mat), useNA='always')  # are there any self-ties
+#diag(mat) <- 0    # set self-ties to 0
+gplot(mat, label=rawIDs)
+
+

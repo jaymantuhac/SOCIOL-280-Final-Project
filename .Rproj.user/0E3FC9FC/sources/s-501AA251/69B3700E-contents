@@ -1,0 +1,176 @@
+#  Walk through structural equivalence 
+#  based upon W&F p364
+library(sna)
+
+### network from powerpoint presentation
+temp2<-c(0,0,0,1,0,0,0,0,1,0,0,1,0,1,1,1,1,0,0,0,0,0,0,1,0,1,0,1,0,0,0,0,0,0,0,1,0,1,1,0,0,1,1,1,0,0,0,1,0,0,0,0,1,0,0,1,1,0,1,1,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,0,0)
+length(temp2)
+net2<-matrix(temp2,ncol=9)
+labels<-c(1,2,3,4,5,6,7,8,9)
+net2
+gplot(net2,label=labels,usearrows=TRUE,arrowhead.cex=.75, vertex.cex=1)
+
+# Use the sedist function to calculate structural equivalence between nodes
+?sedist
+
+# calculate euclidean distance between each pair of nodes
+round(sedist(net2,method='euclidean'),digits=2)
+euc1 <- round(sedist(net2,method='euclidean'))  # to save distances as a matrix
+# calculate distance using correlation instead
+round(sedist(net2,method='correlation'),digits=2)
+
+# how is correlation calculated?
+# for cell i,j: correlate row & column i with row and column j, ignoring self-ties
+# for example: set the diagonal to missing (so that it will be ignored)
+net2_NA <- net2
+diag(net2_NA) <- NA
+# correlation between i=1 and j=2
+cor(c(net2_NA[1,],net2_NA[,1]), c(net2_NA[2,],net2_NA[,2]), use='pairwise.complete.obs')
+sedist(net2,method='correlation')[1,2]  # compare to cell 1,2 from sedist function
+# the negative correlation means i and j have very different patterns of ties
+# why isn't correlation '-1' (maximum dissimilarity) if no ties in common? 
+
+# CONCOR - correlate the distance for each pair of nodes; then correlate the results; repeat
+(corr1 <- sedist(net2,method='correlation'))  # calculate distance and save as matrix
+(corr2 <- sedist(corr1,method='correlation'))
+(corr3 <- sedist(corr2,method='correlation'))
+(corr4 <- sedist(corr3,method='correlation'))
+(corr5 <- sedist(corr4,method='correlation'))  # the correlations have converged on +1 & -1
+# nodes with +1 correlation would be assigned to the same block
+
+
+# Hierarchical clustering with different distance methods 
+# This clusters nodes together that have similar distances to other nodes
+#   Each node begins in its own cluster
+#   Nodes that are more similar are joined sooner
+# Examine the sequence of joins to determine the number of clusters
+eq1 <- equiv.clust(net2, method='euclidean') 
+plot(eq1)
+# y-axis (height) at join refers to criterion used to determine joins
+#  with euclidean, it is the euclidean distance between nodes
+eq2 <- equiv.clust(net2, method='correlation')
+plot(eq2)
+# with correlation, height refers to -1 * distance
+
+
+#  other cluster analysis methods (see 'hclust' function)
+#   same results for this network, only height (distance criteria) differs
+hc1 <- hclust(dist(net2),method='ward.D')
+plot(hc1)
+hc2 <- hclust(dist(net2),method='complete')  
+plot(hc2)
+hc3 <- hclust(dist(net2),method='single')
+plot(hc3)
+
+# material presented in powerpoint
+#  permute matrix and label to examine blocks 
+eq2 <- equiv.clust(net2)    # uses the distance correlations
+( b2 <- blockmodel(net2, eq2 ,k=3) ) # k indicates 3 blocks
+b2named <- b2$blocked.data
+colnames(b2named) <- b2$order.vector
+rownames(b2named) <- b2$order.vector
+
+# examine output: permuted matrix, image matrix, blockmodel, reduced graph
+b2named
+b2$block.model   # image matrix
+plot(b2)
+gplot(b2$block.model,diag=TRUE,label=b2$rlabels,boxed.labels=FALSE,label.pos=2)
+
+# what would happen if we specified 4 blocks?
+b2.4 <- blockmodel(net2, eq2, k=4)  # k indicates 4 blocks
+b2.4$block.model
+plot(b2.4)
+# note that the blocks in the permuted matrix and image matrix are in different orders
+gplot(b2.4$block.model,diag=TRUE,vertex.cex=2,arrowhead.cex=1,label=b2.4$rlabels,boxed.labels=FALSE,label.pos=2)
+
+
+###  Work through example from lecture
+# the igraph and sna/network packages don't always get along
+# to avoid confusion, detach igraph (R won't try to use igraph functions)
+#detach(package:igraph)  
+library(network)
+
+#  read two-mode, extracurricular activity participation data
+setwd('/Users/drschaef/Google Drive/ASU/Teaching/SNA Course/Online/Files/')
+acts2M <- read.paj("acts_noIsolates.net")  # data file was in Pajek format
+
+gplot(acts2M, gmode="twomode", usearrows=F)
+# create participant overlap matrix (nodes are activities)
+acts <- as.matrix(acts2M) %*% t(as.matrix(acts2M))  # multiply the matrix by its transpose
+# transform the valued participant overlap matrix ties to dichotomous
+actsBin <- matrix(as.numeric(acts >= 9),ncol=dim(acts)[1],nrow=dim(acts)[1])
+dim(as.sociomatrix(acts2M))  # 33 activities and 450 students
+dim(acts)  # 33 activites
+head(acts)  # cells are # of students in both activities; diagonal is # of participants in that activity
+rownames(actsBin) <- rownames(acts)
+colnames(actsBin) <- colnames(acts)
+gplot(actsBin, usearrows=F, displaylabels=T, label.cex=.7)
+diag(acts)  # number of participants in each activity, then scale the vertices with vertex.cex
+gplot(actsBin, usearrows=F, displaylabels=T, label.cex=.7, vertex.cex=log(diag(acts/10)))
+
+#  identifying structurally equivalent actors
+#  1. identify which actors are equivalent - several possible methods
+eq3 <- equiv.clust(actsBin, method="euclidean")  # euclidean distance
+eq3a <- equiv.clust(actsBin)                     # default = hamming distance
+eq3b <- equiv.clust(actsBin, method='correlation')                     # default = hamming distance
+hc1a <- hclust(dist(actsBin),method='ward.D')
+hc2a <- hclust(dist(actsBin),method='complete')
+hc3a <- hclust(dist(actsBin),method='single')
+
+#  2. assign actors to blocks with the "blockmodel" function 
+#    NOTE: the blockmodel function will reorder the nodes
+#      this makes it tricky to assign block memberships to nodes
+?blockmodel  # get help
+#  note, we must indicate the number of classes (k), or where to split clusters (h)
+plot(eq3)
+abline(h=3.5, col='red')  # gives us 5 clusters
+b3_3.5 <- blockmodel(actsBin,eq3,h=3.5)   # cut at height=3.5, produces 5 blocks
+print(b3_3.5)
+b3_1 <- blockmodel(actsBin,eq3,h=1)   # cut at height=1, produces 20 blocks
+print(b3_1)
+names(b3_3.5)  # what objects are stored in the blockmodel
+b3_3.5$block.model  # image matrix with densities, could use to set an alpha density
+round(b3_3.5$block.model, 2) 
+plot(b3_3.5)
+
+#  set the alpha density as the density of the activity matrix (actsBin)
+netDensity = gden(actsBin)
+#    compare density matrix (from b3_3.5) to overall density
+b3_3.5$block.model >= netDensity
+#    plot reduced graph
+gplot(b3_3.5$block.model > netDensity, label=b3_3.5$rlabels, displaylabels=TRUE)
+
+#  view who is in which block
+data.frame(b3_3.5$plabels,b3_3.5$block.membership)
+
+#  another approach, using the hierarchical clusters presented above
+#  view the clusters
+plot(hc1a)
+plot(hc2a)
+plot(hc3a)
+#  use one of the clusters to create a blockmodel
+plot(hc2a)
+abline(h=2.4, col='red')
+b4 <- blockmodel(actsBin, hc2a, h=2.4)  # setting h=2.4 creates 8 blocks
+b4$block.model
+plot(b4)
+gplot(b4$block.model,diag=TRUE,vertex.cex=2,arrowhead.cex=1,label=b4$rlabels,boxed.labels=FALSE,label.pos=2)
+# view who is in each block
+data.frame(b4$plabels,b4$block.membership)
+dd <- data.frame(b4$plabels,b4$block.membership)
+dd[with(dd, order(dd$b4.block.membership)), ]   # same list but sorted by block
+
+# extract the block membership (in correct order) and use it to color nodes
+blockMemb <- b4$block.membership[order(b4$order.vector)]
+gplot(actsBin, vertex.col=blockMemb,
+  usearrows=F, displaylabels=T, label.cex=.7, vertex.cex=1.5)
+
+# block structure from slides in class (calculated in Pajek)
+#  assign the bSlide block structure to the network
+bSlide <- c(6,4,6,5,6,4,2,2,6,6,3,3,6,2,6,6,1,2,2,6,6,6,2,2,6,6,3,6,2,6,5,3,4)
+bS <- blockmodel(actsBin,bSlide)
+bS
+plot(bS)
+gplot(bS$block.model,diag=TRUE,vertex.cex=1,arrowhead.cex=1,label=bS$rlabels,
+  boxed.labels=FALSE,label.pos=2,edge.col=bS$block.model)
+

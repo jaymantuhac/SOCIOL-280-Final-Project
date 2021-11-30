@@ -1,0 +1,32 @@
+{
+    "id": "8BD0F3F0",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1638170249280.0,
+    "source_on_save": false,
+    "relative_order": 12,
+    "properties": {
+        "expression": "rawIDs",
+        "caption": "rawIDs",
+        "totalObservations": 263,
+        "displayedObservations": 263,
+        "variables": 1,
+        "cacheKey": "B3FF15A3",
+        "object": "rawIDs",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=rawIDs&cache_key=B3FF15A3&max_cols=50",
+        "preview": 0
+    },
+    "folds": "",
+    "lastKnownWriteTime": 140554120098384,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1638170249280,
+    "read_only": false,
+    "read_only_alternatives": []
+}

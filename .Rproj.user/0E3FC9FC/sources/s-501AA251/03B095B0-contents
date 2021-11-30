@@ -1,0 +1,191 @@
+library(sna)
+library(network)
+
+# analyze TC data (reciprocated "get along" network)
+#setwd('C:/Users/schaef/Documents/AeroFS/ASU/Old Folders/SNA Course/Fall2014/Lectures/')
+#setwd('/Users/drschaef/Google Drive/UCI/Teaching/280 - Network Analysis/Scripts and Data/')
+setwd('/Users/jaymantuhac/Documents/Code/R/SOCIOL 280/Week 8/')
+tcNet <- as.matrix(read.table('TCgetalong.dat'))
+rownames(tcNet) <- colnames(tcNet)
+
+
+( N <- dim(tcNet)[1] )    # 22 nodes
+dat <- read.csv("TC_Network_Data_070814_cleaned.csv",as.is=T,header=T)
+head(dat)
+age <- dat[,2]
+race <- rep("NA",length.out=N)
+race[dat[,"Q5_1"] == 1] <- "white" #white
+race[dat[,"Q5_2"] == 1] <- "gray50" #black
+race[dat[,"Q5_3"] == 1] <- "yellow" #asian
+race[dat[,"Q5_4"] == 1] <- "purple" #pacific islander
+race[dat[,"Q5_5"] == 1] <- "red" #american indian
+race[dat[,"Q5_6"] == 1] <- "orange" #other
+race[race == "NA"]       <- "gray90" #missing
+table(race)
+# make race numeric (necessary for some calculations)
+raceNum <- rep(0,length.out=N)
+raceNum[dat[,"Q5_1"] == 1] <- 1 #white
+raceNum[dat[,"Q5_2"] == 1] <- 2 #black
+raceNum[dat[,"Q5_3"] == 1] <- 3 #asian
+raceNum[dat[,"Q5_4"] == 1] <- 4 #pacific islander
+raceNum[dat[,"Q5_5"] == 1] <- 5 #american indian
+raceNum[dat[,"Q5_6"] == 1] <- 6 #other
+raceNum[raceNum == "NA"]       <- 7 #missing
+table(raceNum)
+
+gplot(tcNet, usearrows=F, label=rownames(tcNet), vertex.col=race)
+
+# Individual level measures of homophily (no baseline adjustment)
+# - Calculate the proportion of alters who are similar to ego on race (a categorical attribute)
+tcNetNA <- tcNet  # create a copy of the adjacency matrix
+tcNetNA[tcNet==0] <- NA  # turn 0's into NA
+altersRace <- t(t(tcNetNA) * raceNum)
+egoRace <- tcNet * raceNum  
+# now compare ego's value to alter's value to see if they match exactly
+egoRace==altersRace  # trues and falses when ties exist; NAs if no tie
+table(egoRace==altersRace)  # Note: each tie counted twice
+rowSums(egoRace==altersRace, na.rm=T)  # this gives us the number of alters who are similar
+rowSums(egoRace==altersRace, na.rm=T) / rowSums(tcNet)  # and here is the proportion similar
+mean(rowSums(egoRace==altersRace, na.rm=T) / rowSums(tcNet), na.rm=T)  # mean proportion similar
+hist(rowSums(egoRace==altersRace, na.rm=T) / rowSums(tcNet))
+
+# - Calculate the average distance between ego and alter on a continuous attribute
+altersAge <- t(t(tcNetNA) * age)
+egoAge <- tcNet * age  
+abs(egoAge - altersAge)  # take the absolute value of the difference
+table(abs(egoAge - altersAge))  # summarize in a table
+diffAge <- abs(egoAge - altersAge)  # save as a new matrix to make later syntax clearer
+apply(diffAge, 1, function(x) mean(x, na.rm=T) )  # calculate the average difference for each ego
+mean(apply(diffAge, 1, function(x) mean(x, na.rm=T)), na.rm=T )  # mean average difference 
+hist(apply(diffAge, 1, function(x) mean(x, na.rm=T) ))  
+
+# what would we get by chance?
+# permute attribute and recalculate, several times
+# - percent similar on categorical attribute (race)
+nPerms <- 10000
+sims <- rep(0,nPerms)
+for (i in 1:nPerms) {
+	altersRacePerm <- t(t(tcNetNA) * sample(raceNum, N))   # the sample function effectively permutes the race vector
+	sims[i] <- mean(rowSums(egoRace==altersRacePerm, na.rm=T) / rowSums(tcNet), na.rm=T)  # save mean similarity
+}
+mean(sims)   # proportion of alters similar expected by chance
+(obsSim <- mean(rowSums(egoRace==altersRace, na.rm=T) / rowSums(tcNet), na.rm=T))  # observed proportion similar
+hist(sims, xlim=c(min(sims, obsSim),max(sims,obsSim)))
+abline(v=obsSim, col='red', lwd=2)
+mean(obsSim < sims)   #  prop. of tests where observed similarity fell below expected (rare)
+mean(obsSim > sims)   #  prop. of tests where observed similarity was greater than expected (most of the time)
+# results offer weak evidence of homophily on race
+
+# - for mean difference on continuous attribute (age) - note smaller difference=homophily
+nPerms <- 100
+diffs <- rep(0,nPerms)
+for (i in 1:nPerms) {
+	altersAgePerm <- t(t(tcNetNA) * sample(age, N))   # the sample function effectively permutes the race vector
+    diffAgePerm <- abs(egoAge - altersAgePerm)
+	diffs[i] <- mean(apply(diffAgePerm, 1, function(x) mean(x, na.rm=T)), na.rm=T )  # save mean similarity
+}
+mean(diffs)   # proportion of alters similar expected by chance
+(obsDiff <- mean(apply(diffAge, 1, function(x) mean(x, na.rm=T)), na.rm=T ))  # observed proportion similar
+hist(diffs, xlim=c(min(diffs, obsDiff),max(diffs,obsDiff)))
+abline(v=obsDiff, col='red', lwd=2)
+mean(obsDiff < diffs)   #  prop. of tests where observed difference was less than expected (more than half the time)
+mean(obsDiff > diffs)   #  prop. of tests where observed difference was greater than expected (less often, but not unusual)
+# even weaker evidence of homophily on age
+
+# - Spatial segregation index (see Bojanowski & Corten 2014)
+#install.packages("netseg")
+library(netseg)
+library(igraph)
+tcNet.ig <- graph.adjacency(tcNet, mode=c("undirected"), diag=FALSE)
+fr <- layout.fruchterman.reingold(tcNet.ig)  
+vertex_attr(tcNet.ig) <- list(race = raceNum,
+                        color = race)
+plot(tcNet.ig)
+( h.ssi <- ssi(tcNet.ig, "race") )
+V(tcNet.ig)$race.ssi <- round(h.ssi,2)
+plot(tcNet.ig, vertex.label=igraph::V(tcNet.ig)$race.ssi)
+
+# Calculate homophily at the network level & adjust for baseline homophily
+#  For a categorical attribute
+#  - Calculate the E-I index 
+ei(tcNet.ig,"race") # range: -1 (all ties within) to 1 (all ties between)
+( (sum(oT)-sum(diag(oT))) - sum(diag(oT)) ) / sum(oT)   # without the function
+( sum(diag(oT)) - (sum(oT)-sum(diag(oT))) ) / sum(oT)   # reverse the direction (E-I*)
+#  - Calculate an odds ratio (see Moody 2001)
+#    Odds of observing homophilous tie relative to odds of observing heterophilous tie
+net2 <- network::network(tcNet)  # convert into a "network" network object (compatible w/ sna package)
+net9 <- network::network(1-tcNet)  # flip all ties
+set.vertex.attribute(net2,"att",raceNum)
+set.vertex.attribute(net9,"att",raceNum)
+(oT <- mixingmatrix(net2,"att") ) # observed ties - shows how many ties are between individuals of each race
+nT <- mixingmatrix(net9,"att")  # null ties
+obsOR <- (sum(diag(oT)) * (sum(nT)-sum(diag(nT)))) / 
+  (sum(diag(nT)) * (sum(oT)-sum(diag(oT))))
+print(obsOR)  # odds of homophilous tie 1.9 times greater than odds of heterophilous tie
+
+# an odds ratio using the netseg package
+orwg(tcNet.ig,"race")
+
+# For continuous attributes, spatial autocorelation measures like Geary's C and Moran's I are appropriate
+# Geary's C ranges from 0 to 2 (2 indicates complete homophily, 1 being independence)
+nacf(tcNet, age, type='geary') # returns autocorrelation at distances 1 to N-1
+nacf(tcNet, age, type='geary')[2]  # autocorrelation among neighbors (distance 1)
+
+# Moran's I ranges from -1 to 1 (1 indicates complete homophily, 0 is independence)
+nacf(sna::symmetrize(tcNet), age, type='moran')  
+nacf(sna::symmetrize(tcNet), age, type='moran')[2]  # autocorrelation at distance 1
+
+# nacf doesn't provide a measure of statistical significance, so use another package
+library(ape)
+Moran.I(age, sna::symmetrize(tcNet), na.rm=T) # should be same as nacf (not sure source of difference)
+
+# For estimating a regression but _controlling for_ homophily, see lnam function in sna package
+# (this is a spatial model)
+#  Also, read pp. 34-36 in Butts (2008)
+?lnam
+
+# get some data
+#install.packages("RSiena")
+library(RSiena)
+data(package='RSiena')
+dim(s50a)  # 50 actors measured at 3 time points
+ivs <- cbind(intercept = rep(1,50),
+					smoking = s50s[,1])
+
+# Models with autocorrelated outcome (AR process; e.g., influence)
+# alcohol only
+lnam.W1.1 <- lnam(s50a[,1], W1=s501)
+summary(lnam.W1.1)
+
+# alcohol ~ intercept
+lnam.W1.2 <- lnam(s50a[,1], ivs[,1], W1=s501)
+summary(lnam.W1.2)
+# significant rho1.1 indicates autocorrelation on alcohol
+
+# alcohol ~ intercept + smoking
+lnam.W1.3 <- lnam(s50a[,1], ivs, W1=s501)
+summary(lnam.W1.3)
+# interpretation: smoking significantly predicts alcohol use
+#  while controlling for presence of autocorrelation in alcohol
+#  (autocorrelation on alcohol (rho1.1) is significant)
+# BIC = 146.1
+
+# Models with autocorrelated error (MA process: nodes experience same error)
+# alcohol only
+lnam.W2.1 <- lnam(s50a[,1], W2=s501)
+summary(lnam.W2.1)
+
+# alcohol ~ intercept
+lnam.W2.2 <- lnam(s50a[,1], ivs[,1], W2=s501)
+summary(lnam.W2.2)
+# significant rho2.1 also indicates autocorrelation on alcohol
+
+# alcohol ~ intercept + smoking
+lnam.W2.3 <- lnam(s50a[,1], ivs, W2=s501)
+summary(lnam.W2.3)
+# interpretation: smoking significantly predicts alcohol use
+#  while controlling for autocorrelated errors in alcohol measurement
+#  (errors are not autocorrelated (rho2.1) after conditioning on smoking)
+# BIC = 149; model fit is worse than AR model
+
+# Conclusion: AR model fits better: smoking and influence appear to affect alcohol use
