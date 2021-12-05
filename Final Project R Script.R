@@ -22,7 +22,9 @@ pacman::p_load(ggplot2,
                magick,
                ergMargins,
                tnet,
-               tidyverse)
+               tidyverse,
+               coda,
+               statnet)
 
 nodes <- read.csv('nodeList_covidDummy.csv')
 nodes <- nodes[!(nodes$Id == 55 | nodes$Id == 126),] #Nodes 55 and 126 don't appear on sociogram
@@ -269,8 +271,6 @@ print(obsOR)  # odds of homophilous tie 1.71 times greater than odds of heteroph
 orwg(sociomatrix.ig,"zip") #We get the same OR as the code above
 
 # ERGM Development
-library(coda)
-library(statnet)
 
 #Implement other vertex attributes
 network::set.vertex.attribute(net2, "race", race)
@@ -285,12 +285,68 @@ model2 <- ergm(net2 ~ edges + nodefactor('zip'))
 summary(model2)
 
 model3 <- ergm(net2 ~ edges + nodefactor('zip') + nodematch('zip')) 
-summary(model3)
+summary(model3) #Best fit model (lowest AIC) - gender/race don't really contribute to odds of a tie
 
 model4 <- ergm(net2 ~ edges + nodefactor('zip') + nodematch('zip') +
                  nodematch('gender')) 
-summary(model4)
+summary(model4) 
 
 model5 <- ergm(net2 ~ edges + nodefactor('zip') + nodematch('zip') +
                  nodematch('gender') + nodematch('race')) 
-summary(model5)
+summary(model5) #Most comprehensive model
+
+model6 <- ergm(net2 ~ edges + nodefactor('zip') +
+                 nodematch('gender') + nodematch('race'))
+summary(model6)
+
+#Generate odds
+inv.logit <- function(logit){
+  odds <- exp(logit)
+  prob <- odds / (1 + odds)
+  return(prob)
+}
+
+inv.logit(coef(model5))
+
+
+#Is our most comprehensive model really different than simulated models like it?
+hundred_simulations <- simulate(model5, 
+                                coef = coef(model5),
+                                nsim = 100,
+                                control = control.simulate.ergm(MCMC.burnin = 1000,
+                                                                MCMC.interval = 1000))
+
+net_densities <- unlist(lapply(hundred_simulations, network.density))
+
+hist(net_densities, xlab = "Density", main = "", col = "lightgray")
+abline(v = network.density(net2), col = "red", lwd = 3, lty = 2)
+abline(v = mean(net_densities), col = "blue", lwd = 3, lty = 1)
+
+
+hundred_simulations_2 <- simulate(model1, 
+                                coef = coef(model1),
+                                nsim = 100,
+                                control = control.simulate.ergm(MCMC.burnin = 1000,
+                                                                MCMC.interval = 1000))
+
+#Comparison with simulated model1 (model with just edges)
+net_densities_2 <- unlist(lapply(hundred_simulations_2, network.density))
+
+hist(net_densities_2, xlab = "Density", main = "", col = "lightgray")
+abline(v = network.density(net2), col = "red", lwd = 3, lty = 2)
+abline(v = mean(net_densities_2), col = "blue", lwd = 3, lty = 1)
+# Model 5 significantly deviates from what would be simulated, suggests there truly is a better fit
+
+
+# Test ERGM godness of fit of most comprehensive model compared to model with just edges
+# gof() compares the fit of our model to simulated version of our model
+gof_stats_null <- gof(model1)
+par(mfrow = c(2, 3))
+plot(gof_stats_null, main = '')
+
+gof_stats <- gof(model5)
+par(mfrow = c(2, 3))
+plot(gof_stats, main = '')
+
+# Goodness of fit reveals that there isn't too much difference, especially with (out/in)degrees
+# Still, model 5 is much more comprehensive
