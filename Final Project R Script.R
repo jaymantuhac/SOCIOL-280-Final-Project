@@ -299,14 +299,15 @@ model6 <- ergm(net2 ~ edges + nodefactor('zip') +
                  nodematch('gender') + nodematch('race'))
 summary(model6)
 
-#Generate odds
+#Generate odds/probabilities for each covariate
 inv.logit <- function(logit){
   odds <- exp(logit)
   prob <- odds / (1 + odds)
   return(prob)
 }
 
-inv.logit(coef(model5))
+coef(model5) #odds of tie observation
+inv.logit(coef(model5)) #Probability of tie observation
 
 
 #Is our most comprehensive model really different than simulated models like it?
@@ -348,5 +349,6 @@ gof_stats <- gof(model5)
 par(mfrow = c(2, 3))
 plot(gof_stats, main = '')
 
-# Goodness of fit reveals that there isn't too much difference, especially with (out/in)degrees
-# Still, model 5 is much more comprehensive
+# Goodness of fit reveals that model 5 has more deviation than simulation compared to the null (model1) model
+# Model 5 is much more comprehensive and is a better fit with our data!
+
