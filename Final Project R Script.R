@@ -283,3 +283,14 @@ summary(model1)
 
 model2 <- ergm(net2 ~ edges + nodefactor('zip'))
 summary(model2)
+
+model3 <- ergm(net2 ~ edges + nodefactor('zip') + nodematch('zip')) 
+summary(model3)
+
+model4 <- ergm(net2 ~ edges + nodefactor('zip') + nodematch('zip') +
+                 nodematch('gender')) 
+summary(model4)
+
+model5 <- ergm(net2 ~ edges + nodefactor('zip') + nodematch('zip') +
+                 nodematch('gender') + nodematch('race')) 
+summary(model5)
