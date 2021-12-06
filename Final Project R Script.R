@@ -248,7 +248,7 @@ library(network)
 sociomatrix.ig <- graph.adjacency(sociomatrix, mode=c("directed"), diag=FALSE)
 fr <- layout.fruchterman.reingold(sociomatrix.ig)  
 vertex_attr(sociomatrix.ig) <- list(zip = zipref,
-                              color = zip)
+                                    color = zip)
 
 # Calculate homophily at the network level & adjust for baseline homophily
 #  For a categorical attribute
@@ -309,27 +309,6 @@ inv.logit <- function(logit){
 coef(model5) #odds of tie observation
 inv.logit(coef(model5)) #Probability of tie observation
 
-
-#Is our most comprehensive model really different than simulated models like it?
-hundred_simulations <- simulate(model5, 
-                                coef = coef(model5),
-                                nsim = 100,
-                                control = control.simulate.ergm(MCMC.burnin = 1000,
-                                                                MCMC.interval = 1000))
-
-net_densities <- unlist(lapply(hundred_simulations, network.density))
-
-hist(net_densities, xlab = "Density", main = "", col = "lightgray")
-abline(v = network.density(net2), col = "red", lwd = 3, lty = 2)
-abline(v = mean(net_densities), col = "blue", lwd = 3, lty = 1)
-
-
-hundred_simulations_2 <- simulate(model1, 
-                                coef = coef(model1),
-                                nsim = 100,
-                                control = control.simulate.ergm(MCMC.burnin = 1000,
-                                                                MCMC.interval = 1000))
-
 #Comparison with simulated model1 (model with just edges)
 net_densities_2 <- unlist(lapply(hundred_simulations_2, network.density))
 
@@ -338,16 +317,11 @@ abline(v = network.density(net2), col = "red", lwd = 3, lty = 2)
 abline(v = mean(net_densities_2), col = "blue", lwd = 3, lty = 1)
 # Model 5 significantly deviates from what would be simulated, suggests there truly is a better fit
 
-
 # Test ERGM godness of fit of most comprehensive model compared to model with just edges
 # gof() compares the fit of our model to simulated version of our model
-gof_stats_null <- gof(model1)
-par(mfrow = c(2, 3))
-plot(gof_stats_null, main = '')
 
 gof_stats <- gof(model5)
-par(mfrow = c(2, 3))
-plot(gof_stats, main = '')
+plot(gof_stats)
 
 # Goodness of fit reveals that model 5 has more deviation than simulation compared to the null (model1) model
 # Model 5 is much more comprehensive and is a better fit with our data!
